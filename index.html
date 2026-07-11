@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Image Compressor PWA</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    
+    <style>
+        /* Light Mode Defaults (CSS Variables) */
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --panel-bg: #f8fafc;
+            --dropzone-bg: #f0f7ff;
+            --preview-canvas: #e2e8f0;
+        }
+
+        /* AUTO THEMING: Automatic Dark Mode Selection */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-main: #0f172a;
+                --card-bg: #1e293b;
+                --text-dark: #f8fafc;
+                --text-muted: #94a3b8;
+                --border: #334155;
+                --panel-bg: #0f172a;
+                --dropzone-bg: #1e293b;
+                --preview-canvas: #475569;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            padding: 15px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: var(--card-bg);
+            max-width: 1100px;
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 25px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--primary);
+            background: var(--dropzone-bg);
+            border-radius: 12px;
+            padding: 30px 15px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 25px;
+        }
+
+        .drop-zone p {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .drop-zone span {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 5px;
+        }
+
+        #fileInput { display: none; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 5px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-row { display: flex; gap: 10px; }
+
+        .form-row input, .form-group select, .form-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            background: var(--card-bg);
+            color: var(--text-dark);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+        }
+
+        .btn-primary { background: var(--primary); color: white; margin-top: 15px; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-success { background: var(--success); color: white; margin-top: 20px; }
+
+        .preview-container { display: flex; flex-direction: column; gap: 15px; }
+
+        .preview-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .preview-card img {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 6px;
+            margin-top: 8px;
+            background: var(--preview-canvas);
+        }
+
+        .size-tag { font-size: 13px; font-weight: 700; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Pro Image Compressor & Resizer</h1>
+        <p>Offline Support aur Auto-Theming ke saath ready</p>
+    </header>
+
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <p>Drag & Drop Karein ya Photo Choose Karne Ke Liye Click Karein</p>
+        <span>Icons loaded successfully for PWA Installation</span>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="workspace" id="workspace">
+        <div class="panel">
+            <div class="panel-title">Compression Settings</div>
+            <div class="form-group">
+                <label for="targetKB">Target File Size (KB Limit):</label>
+                <input type="number" id="targetKB" value="200" min="5">
+            </div>
+            <div class="form-group">
+                <label>Dimensions (Pixels):</label>
+                <div class="form-row">
+                    <input type="number" id="imgWidth" placeholder="Width">
+                    <input type="number" id="imgHeight" placeholder="Height">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="aspectRatio" checked>
+                    <label for="aspectRatio">Aspect Ratio Lock Rakkhein</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="outputFormat">Output Format:</label>
+                <select id="outputFormat">
+                    <option value="image/jpeg">JPEG (Forms ke liye best)</option>
+                    <option value="image/webp">WebP (Modern Optimized)</option>
+                    <option value="image/png">PNG (Lossless)</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="processBtn">Apply & Compress</button>
+        </div>
+
+        <div class="panel preview-container">
+            <div class="panel-title">Live Preview</div>
+            <div class="preview-card">
+                <div><strong>Original Image</strong></div>
+                <div class="size-tag" id="origSize">Size: 0 KB</div>
+                <div style="font-size: 11px; color: var(--text-muted);" id="origDim">Dimensions: 0 x 0</div>
+                <img id="origImgPreview" alt="Original">
+            </div>
+            <div class="preview-card">
+                <div><strong>Compressed Result</strong></div>
+                <div class="size-tag" id="compSize" style="color: var(--success);">Size: 0 KB</div>
+                <div style="font-size: 11px; color: var(--text-muted);" id="compDim">Dimensions: 0 x 0</div>
+                <img id="compImgPreview" alt="Compressed">
+            </div>
+            <a id="downloadLink" class="btn btn-success" style="display: none;">Download Compressed Image</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // [PWA Service Worker Registration]
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker Registered!', reg))
+                .catch(err => console.log('Service Worker Setup Failed Code:', err));
+        });
+    }
+
+    // [Compression Tool JavaScript Logic]
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const workspace = document.getElementById('workspace');
+    const targetKBInput = document.getElementById('targetKB');
+    const imgWidthInput = document.getElementById('imgWidth');
+    const imgHeightInput = document.getElementById('imgHeight');
+    const aspectRatioCheck = document.getElementById('aspectRatio');
+    const outputFormatSelect = document.getElementById('outputFormat');
+    const processBtn = document.getElementById('processBtn');
+    const origSize = document.getElementById('origSize');
+    const origDim = document.getElementById('origDim');
+    const compSize = document.getElementById('compSize');
+    const compDim = document.getElementById('compDim');
+    const origImgPreview = document.getElementById('origImgPreview');
+    const compImgPreview = document.getElementById('compImgPreview');
+    const downloadLink = document.getElementById('downloadLink');
+
+    let originalImgObject = new Image();
+    let originalAspectRatio = 1;
+
+    fileInput.addEventListener('change', handleFileLoad);
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if(e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; handleFileLoad(); }
+    });
+
+    function handleFileLoad() {
+        const file = fileInput.files[0];
+        if (!file) return;
+        origSize.innerText = `Size: ${(file.size / 1024).toFixed(2)} KB`;
+        const reader = new FileReader();
+        reader.onload = function(e) { origImgPreview.src = e.target.result; originalImgObject.src = e.target.result; };
+        reader.readAsDataURL(file);
+        originalImgObject.onload = function() {
+            originalAspectRatio = originalImgObject.naturalWidth / originalImgObject.naturalHeight;
+            imgWidthInput.value = originalImgObject.naturalWidth;
+            imgHeightInput.value = originalImgObject.naturalHeight;
+            origDim.innerText = `Dimensions: ${originalImgObject.naturalWidth} x ${originalImgObject.naturalHeight} px`;
+            workspace.style.display = 'grid';
+            executeCompression();
+        };
+    }
+
+    imgWidthInput.addEventListener('input', () => { if(aspectRatioCheck.checked && imgWidthInput.value) imgHeightInput.value = Math.round(imgWidthInput.value / originalAspectRatio); });
+    imgHeightInput.addEventListener('input', () => { if(aspectRatioCheck.checked && imgHeightInput.value) imgWidthInput.value = Math.round(imgHeightInput.value * originalAspectRatio); });
+    processBtn.addEventListener('click', executeCompression);
+
+    function executeCompression() {
+        const targetKB = parseFloat(targetKBInput.value) || 200;
+        let w = parseInt(imgWidthInput.value) || originalImgObject.naturalWidth;
+        let h = parseInt(imgHeightInput.value) || originalImgObject.naturalHeight;
+        const format = outputFormatSelect.value;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = w; canvas.height = h;
+        if(format === 'image/jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h); }
+        ctx.drawImage(originalImgObject, 0, 0, w, h);
+
+        let quality = 0.95; let finalDataUrl = ""; let bytesSize = Infinity;
+        if (format === 'image/png') {
+            finalDataUrl = canvas.toDataURL(format);
+            bytesSize = Math.round((finalDataUrl.length - 22) * 3 / 4);
+        } else {
+            for (let i = 0; i < 10; i++) {
+                finalDataUrl = canvas.toDataURL(format, quality);
+                const base64Head = finalDataUrl.indexOf(',') + 1;
+                bytesSize = Math.round((finalDataUrl.length - base64Head) * 3 / 4);
+                if ((bytesSize / 1024) <= targetKB) break;
+                quality -= 0.12;
+            }
+        }
+        compImgPreview.src = finalDataUrl;
+        compSize.innerText = `Size: ${(bytesSize / 1024).toFixed(2)} KB`;
+        compDim.innerText = `Dimensions: ${w} x ${h} px`;
+        downloadLink.href = finalDataUrl;
+        const ext = format === 'image/jpeg' ? 'jpg' : format === 'image/webp' ? 'webp' : 'png';
+        downloadLink.download = `compressed_photo.${ext}`;
+        downloadLink.style.display = 'block';
+    }
+</script>
+</body>
+</html>
